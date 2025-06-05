@@ -375,7 +375,7 @@
             <div class="card">
                 <div class="card-header">
                     <h2 class="card-title">
-                        📊 Status Dashboard
+                        📊 Status Dashboard Pak Eko
                     </h2>
                     <p class="card-description">Monitor status remot dadu secara real-time</p>
                 </div>
@@ -673,13 +673,11 @@
             activateBtn.disabled = true;
             
             try {
-                const expiryTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
                 await appControlRef.set({
                     isActive: true,
-                    activatedAt: firebase.database.ServerValue.TIMESTAMP,
-                    expiryTime: expiryTime
+                    activatedAt: firebase.database.ServerValue.TIMESTAMP
                 });
-                showToast('Aplikasi berhasil diaktifkan untuk 24 jam', 'success');
+                showToast('Aplikasi berhasil diaktifkan tanpa batas waktu', 'success');
             } catch (error) {
                 showToast('Gagal mengaktifkan aplikasi', 'error');
                 console.error('Error activating app:', error);
