@@ -1,0 +1,817 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Remote Monitor</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1fr;
+        }
+
+        /* Mobile First - Stack vertically */
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .card-description {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 640px) {
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .status-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .status-card {
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid #64748b;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            margin: 0 auto 8px;
+            border-radius: 50%;
+        }
+
+        .status-icon.connected {
+            background: #10b981;
+        }
+
+        .status-icon.disconnected {
+            background: #ef4444;
+        }
+
+        .status-icon.active {
+            background: #3b82f6;
+        }
+
+        .status-icon.inactive {
+            background: #6b7280;
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .status-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .activity-log {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(51, 65, 85, 0.4);
+            border: 1px solid #64748b;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .activity-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .activity-time {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            background: #4b5563;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stats-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        @media (min-width: 640px) {
+            .stats-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-item {
+            background: rgba(51, 65, 85, 0.4);
+            border: 1px solid #64748b;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #60a5fa;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #374151;
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        /* Custom scrollbar */
+        .activity-log::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activity-log::-webkit-scrollbar-track {
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 3px;
+        }
+
+        .activity-log::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 3px;
+        }
+
+        .activity-log::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Header responsive */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        @media (max-width: 640px) {
+            .card-title {
+                font-size: 1.25rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .header-actions {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .btn {
+                min-width: auto;
+                flex: 1;
+                font-size: 0.75rem;
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Main Dashboard -->
+        <div class="main-section">
+            <!-- Status Cards -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        📊 Status Dashboard
+                    </h2>
+                    <p class="card-description">Monitor status remot dadu secara real-time</p>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-card">
+                        <div class="status-icon" id="connectionIcon"></div>
+                        <div class="status-label">Koneksi Firebase</div>
+                        <div class="status-value" id="connectionStatus">Memuat...</div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="status-icon" id="appIcon"></div>
+                        <div class="status-label">Status Aplikasi</div>
+                        <div class="status-value" id="appStatus">Tidak Aktif</div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="status-icon" id="disturbanceIcon"></div>
+                        <div class="status-label">Mode Gangguan</div>
+                        <div class="status-value" id="disturbanceStatus">Nonaktif</div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="status-icon active"></div>
+                        <div class="status-label">Total Perintah</div>
+                        <div class="status-value" id="totalCommands">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        🎮 Panel Kontrol
+                    </h2>
+                    <p class="card-description">Kelola aplikasi remot dan fitur gangguan</p>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" id="activateBtn">
+                        <span class="loading" id="activateLoading" style="display: none;"></span>
+                        🟢 Aktifkan Remot
+                    </button>
+                    <button class="btn btn-danger" id="deactivateBtn">
+                        🔴 Nonaktifkan Remot
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-warning" id="disturbanceBtn">
+                        ⚠️ <span id="disturbanceBtnText">Kirim Gangguan</span>
+                    </button>
+                    <button class="btn btn-secondary" id="resetBtn">
+                        🗑️ Reset History
+                    </button>
+                </div>
+
+                <!-- Real-time Stats -->
+                <div class="stats-section">
+                    <div class="stat-item">
+                        <div class="stat-number" id="todayCommands">0</div>
+                        <div class="stat-label">Perintah Hari Ini</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="lastCommand">-</div>
+                        <div class="stat-label">Perintah Terakhir</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    📝 Log Aktivitas
+                    <span class="header-actions">
+                        <button class="btn btn-warning" id="mobileDisturbanceBtn">
+                            ⚠️ <span id="mobileDisturbanceBtnText">Gangguan</span>
+                        </button>
+                        <button class="btn btn-secondary" id="mobileResetBtn">
+                            🗑️ Reset
+                        </button>
+                    </span>
+                </h2>
+                <p class="card-description">
+                    Perintah angka yang dikirim dari remot (<span id="activityCount">0</span>)
+                </p>
+            </div>
+            
+            <div class="activity-log" id="activityLog">
+                <div class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <p>Belum ada perintah dari remot</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Firebase Configuration
+        const monitoringConfig = {
+            apiKey: "AIzaSyDCYjIYcBNk-418QdBRFCquFSTIfmVpJ4M",
+            authDomain: "remot-dadu-ca3d6.firebaseapp.com",
+            databaseURL: "https://remot-dadu-ca3d6-default-rtdb.firebaseio.com",
+            projectId: "remot-dadu-ca3d6",
+            storageBucket: "remot-dadu-ca3d6.firebasestorage.app",
+            messagingSenderId: "449910097968",
+            appId: "1:449910097968:web:3cd3cd8f8aa8f0633b45f5"
+        };
+
+        const dataConfig = {
+            databaseURL: "https://server-dadu-kecrek-default-rtdb.firebaseio.com/"
+        };
+
+        // Initialize Firebase
+        const monitoringApp = firebase.initializeApp(monitoringConfig, 'monitoring');
+        const dataApp = firebase.initializeApp(dataConfig, 'data');
+
+        // Database references
+        const monitoringDb = firebase.database(monitoringApp);
+        const dataDb = firebase.database(dataApp);
+        
+        const appControlRef = monitoringDb.ref('app-control');
+        const activityRef = monitoringDb.ref('activity-history');
+        const disturbanceControlRef = monitoringDb.ref('disturbance-control');
+        const connectedRef = dataDb.ref('.info/connected');
+        const baucuaRef = dataDb.ref('baucua');
+
+        // State
+        let activities = [];
+        let isConnected = false;
+        let isAppActive = false;
+        let isDisturbanceActive = false;
+        let processedDataRef = new Set();
+
+        // DOM Elements
+        const connectionIcon = document.getElementById('connectionIcon');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const appIcon = document.getElementById('appIcon');
+        const appStatus = document.getElementById('appStatus');
+        const disturbanceIcon = document.getElementById('disturbanceIcon');
+        const disturbanceStatus = document.getElementById('disturbanceStatus');
+        const totalCommands = document.getElementById('totalCommands');
+        const activateBtn = document.getElementById('activateBtn');
+        const deactivateBtn = document.getElementById('deactivateBtn');
+        const disturbanceBtn = document.getElementById('disturbanceBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const mobileDisturbanceBtn = document.getElementById('mobileDisturbanceBtn');
+        const mobileResetBtn = document.getElementById('mobileResetBtn');
+        const activityLog = document.getElementById('activityLog');
+        const activityCount = document.getElementById('activityCount');
+        const todayCommands = document.getElementById('todayCommands');
+        const lastCommand = document.getElementById('lastCommand');
+        const toast = document.getElementById('toast');
+        const activateLoading = document.getElementById('activateLoading');
+        const disturbanceBtnText = document.getElementById('disturbanceBtnText');
+        const mobileDisturbanceBtnText = document.getElementById('mobileDisturbanceBtnText');
+
+        // Utility Functions
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function getTodayCommands() {
+            const today = new Date().toDateString();
+            return activities.filter(activity => 
+                new Date(activity.time || activity.timestamp).toDateString() === today
+            ).length;
+        }
+
+        function getLastCommand() {
+            if (activities.length === 0) return '-';
+            const sortedActivities = [...activities].sort((a, b) => 
+                (b.time || b.timestamp) - (a.time || a.timestamp)
+            );
+            return sortedActivities[0].results || '-';
+        }
+
+        function updateStats() {
+            totalCommands.textContent = activities.length;
+            todayCommands.textContent = getTodayCommands();
+            lastCommand.textContent = getLastCommand();
+            activityCount.textContent = activities.length;
+        }
+
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            if (connected) {
+                connectionIcon.className = 'status-icon connected';
+                connectionStatus.textContent = 'Terhubung';
+            } else {
+                connectionIcon.className = 'status-icon disconnected';
+                connectionStatus.textContent = 'Terputus';
+            }
+        }
+
+        function updateAppStatus(status) {
+            isAppActive = status && status.isActive;
+            if (isAppActive) {
+                appIcon.className = 'status-icon active';
+                appStatus.textContent = 'Aktif';
+            } else {
+                appIcon.className = 'status-icon inactive';
+                appStatus.textContent = 'Tidak Aktif';
+            }
+        }
+
+        function updateDisturbanceStatus() {
+            if (isDisturbanceActive) {
+                disturbanceIcon.className = 'status-icon disconnected';
+                disturbanceStatus.textContent = 'Aktif';
+                disturbanceBtnText.textContent = 'Stop Gangguan';
+                mobileDisturbanceBtnText.textContent = 'Stop';
+                disturbanceBtn.className = 'btn btn-danger';
+                mobileDisturbanceBtn.className = 'btn btn-danger';
+            } else {
+                disturbanceIcon.className = 'status-icon inactive';
+                disturbanceStatus.textContent = 'Nonaktif';
+                disturbanceBtnText.textContent = 'Kirim Gangguan';
+                mobileDisturbanceBtnText.textContent = 'Gangguan';
+                disturbanceBtn.className = 'btn btn-warning';
+                mobileDisturbanceBtn.className = 'btn btn-warning';
+            }
+        }
+
+        function saveActivitiesToDatabase() {
+            // Save current activities to monitoring database for persistence
+            const activitiesRef = monitoringDb.ref('monitor-activities');
+            const persistData = {};
+            activities.forEach((activity, index) => {
+                persistData[`activity_${index}_${activity.time || activity.timestamp}`] = activity;
+            });
+            activitiesRef.set(persistData);
+        }
+
+        function loadActivitiesFromDatabase() {
+            // Load activities from monitoring database
+            const activitiesRef = monitoringDb.ref('monitor-activities');
+            activitiesRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    activities = Object.values(data);
+                    renderActivities();
+                    updateStats();
+                }
+            });
+        }
+
+        function renderActivities() {
+            if (activities.length === 0) {
+                activityLog.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>Belum ada perintah dari remot</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const sortedActivities = [...activities].sort((a, b) => 
+                (b.time || b.timestamp) - (a.time || a.timestamp)
+            );
+
+            activityLog.innerHTML = sortedActivities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-number">${activity.results}</div>
+                    <div class="activity-time">${formatTime(activity.time || activity.timestamp)}</div>
+                </div>
+            `).join('');
+        }
+
+        // Event Handlers
+        async function activateApp() {
+            activateLoading.style.display = 'inline-block';
+            activateBtn.disabled = true;
+            
+            try {
+                const expiryTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+                await appControlRef.set({
+                    isActive: true,
+                    activatedAt: firebase.database.ServerValue.TIMESTAMP,
+                    expiryTime: expiryTime
+                });
+                showToast('Aplikasi berhasil diaktifkan untuk 24 jam', 'success');
+            } catch (error) {
+                showToast('Gagal mengaktifkan aplikasi', 'error');
+                console.error('Error activating app:', error);
+            } finally {
+                activateLoading.style.display = 'none';
+                activateBtn.disabled = false;
+            }
+        }
+
+        async function deactivateApp() {
+            try {
+                await appControlRef.set({
+                    isActive: false,
+                    deactivatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                showToast('Aplikasi berhasil dinonaktifkan', 'success');
+            } catch (error) {
+                showToast('Gagal menonaktifkan aplikasi', 'error');
+                console.error('Error deactivating app:', error);
+            }
+        }
+
+        async function toggleDisturbance() {
+            try {
+                if (isDisturbanceActive) {
+                    await disturbanceControlRef.remove();
+                    showToast('Gangguan dihentikan', 'success');
+                } else {
+                    await disturbanceControlRef.set({
+                        isActive: true,
+                        url: 'https://firmanuye12.github.io/gangguan/',
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        updatedBy: 'monitor'
+                    });
+                    showToast('Gangguan dikirim ke remot', 'success');
+                }
+            } catch (error) {
+                showToast('Gagal mengirim gangguan', 'error');
+                console.error('Error toggling disturbance:', error);
+            }
+        }
+
+        async function resetHistory() {
+            if (confirm('Yakin ingin menghapus semua history aktivitas?')) {
+                try {
+                    activities = [];
+                    await monitoringDb.ref('monitor-activities').remove();
+                    renderActivities();
+                    updateStats();
+                    showToast('History berhasil dihapus', 'success');
+                } catch (error) {
+                    showToast('Gagal menghapus history', 'error');
+                    console.error('Error resetting history:', error);
+                }
+            }
+        }
+
+        // Event Listeners
+        activateBtn.addEventListener('click', activateApp);
+        deactivateBtn.addEventListener('click', deactivateApp);
+        disturbanceBtn.addEventListener('click', toggleDisturbance);
+        mobileDisturbanceBtn.addEventListener('click', toggleDisturbance);
+        resetBtn.addEventListener('click', resetHistory);
+        mobileResetBtn.addEventListener('click', resetHistory);
+
+        // Firebase Listeners
+        connectedRef.on('value', (snapshot) => {
+            updateConnectionStatus(snapshot.val());
+        });
+
+        appControlRef.on('value', (snapshot) => {
+            updateAppStatus(snapshot.val());
+        });
+
+        disturbanceControlRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            isDisturbanceActive = data && data.isActive;
+            updateDisturbanceStatus();
+        });
+
+        // Listen to baucua data (commands from remote)
+        baucuaRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.results) {
+                const dataKey = `${data.results}_${data.time || Date.now()}`;
+                
+                // Prevent duplicate processing
+                if (!processedDataRef.has(dataKey)) {
+                    processedDataRef.add(dataKey);
+                    
+                    // Clean up old processed data (keep only last 50)
+                    if (processedDataRef.size > 50) {
+                        const keys = Array.from(processedDataRef);
+                        keys.slice(0, 25).forEach(key => processedDataRef.delete(key));
+                    }
+                    
+                    const newActivity = {
+                        results: data.results,
+                        time: data.time || Date.now(),
+                        timestamp: data.time || Date.now()
+                    };
+                    
+                    // Add to activities array
+                    activities.unshift(newActivity);
+                    
+                    // Keep only last 100 activities
+                    if (activities.length > 100) {
+                        activities = activities.slice(0, 100);
+                    }
+                    
+                    console.log('New command from remote:', newActivity);
+                    renderActivities();
+                    updateStats();
+                    saveActivitiesToDatabase();
+                    
+                    showToast(`Perintah baru dari remot: ${data.results}`, 'success');
+                }
+            }
+        });
+
+        // Listen to activity history from monitoring database
+        activityRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                console.log('Activity history updated:', data);
+                // We could process additional activity logs here if needed
+            }
+        });
+
+        // Initialize
+        updateDisturbanceStatus();
+        loadActivitiesFromDatabase();
+        showToast('Monitor dice remote siap digunakan', 'success');
+    </script>
+</body>
+</html>
